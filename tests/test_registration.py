@@ -1,7 +1,9 @@
+from playwright.sync_api._generated import Page
 import pytest
 from playwright.sync_api import expect
 from pages.register_page import RegisterPage
 from helpers.test_data import make_unique_email
+from pages.login_page import LoginPage
 
 class TestPageLoaded:
     """
@@ -44,10 +46,11 @@ class TestPageLoaded:
 
 class TestSuccessfulRegistration:
     """
-    Verifies valid regisztration succeeds
-    NOTE: These tests FAIL because of application bugs:
-    - App does not redirect after successful registration
-    - No success message is displayed
+    Verifies valid registration succeeds.
+    NOTE: These tests FAIL — registration form submits but application
+    stays on register page without redirect or success message.
+    This is a confirmed bug: manual registration works but automation
+    does not trigger the same backend response.
 
     Expected to FAIL.
     """
@@ -63,6 +66,8 @@ class TestSuccessfulRegistration:
         register_page.confirm_password.fill("SecurePass1!")
         register_page.terms_checkbox.check()
         register_page.submit()
+
+        register_page.page.wait_for_timeout(2000)
 
         url_changed = register_page.page.url != RegisterPage.URL
         shows_success = register_page.page.get_by_text("success").is_visible()
@@ -252,3 +257,58 @@ class TestEdgeCases:
             f"SQL injection should not expose db errors"
             f"Page content: {body[:200]}"
             )
+        
+class TestLoginFlow:
+    """
+    Verifies login page behavior.
+    test_registered_user_can_login: FAIL — depends on registration
+    which does not complete through automation (known bug).
+    test_invalid_login_is_rejected: PASS — invalid credentials rejected.
+    """
+
+    def test_registered_user_can_login(self, page: Page):
+        email = make_unique_email()
+
+        rp = RegisterPage(page)
+        rp.open()
+        rp.first_name.fill("John")
+        rp.last_name.fill("Doe")
+        rp.email.fill(email)
+        rp.phone.fill("0911234567")
+        rp.street.fill("123 Main Street")
+        rp.city.fill("Split")
+        rp.zip_code.fill("21000")
+        rp.password.fill("SecurePass1!")
+        rp.confirm_password.fill("SecurePass1!")
+        rp.terms_checkbox.check()
+        rp.submit()
+
+        page.wait_for_timeout(3000)
+
+        lp = LoginPage(page)
+        lp.open()
+        lp.login(email, "SecurePass1!")
+
+        assert page.url != LoginPage.URL, (
+            f"Registered user should be able to login. "
+            f"Current URL: {page.url}"
+        )
+
+        lp = LoginPage(page)
+        lp.open()
+        lp.login(email, "SecurePass1!")
+
+        assert page.url != LoginPage.URL, (
+            f"Registered user should be able to login. "
+            f"Current URL: {page.url}"
+        )
+
+    def test_invalid_login_is_rejected(self, page: Page):
+        lp = LoginPage(page)
+        lp.open()
+        lp.login("nepostoji@test.com", "WrongPass1!")
+
+        assert page.url == LoginPage.URL, (
+            f"Invalid credentials should be rejected. "
+            f"Current URL: {page.url}"
+        )
