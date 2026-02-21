@@ -123,6 +123,8 @@ class TestRequiredFields:
         )
         
     def test_unchecked_terms_blocks_form(self, filled_form: RegisterPage):
+        filled_form.terms_checkbox.uncheck()
+        filled_form.submit()
         assert filled_form.page.url == RegisterPage.URL, (
             f"Form should not submit without password. "
             f"Current URL: {filled_form.page.url}"
@@ -147,12 +149,12 @@ class TestEmailValidation:
         filled_form.email.fill("johndoeexample@")
         filled_form.submit()
         assert filled_form.page.url == RegisterPage.URL, (
-            f"Email without domain should be rejected. "
+            f"Plain text should not be accepted as email. "
             f"Current URL: {filled_form.page.url}"
         )
         
     def test_plain_text_as_email_is_rejected(self, filled_form: RegisterPage):
-        filled_form.email.fill("johndoeexample@")
+        filled_form.email.fill("johndoeexample")
         filled_form.submit()
         assert filled_form.page.url == RegisterPage.URL, (
             f"Email without domain should be rejected. "
@@ -168,10 +170,11 @@ class TestPasswordStrength:
     """
 
     def test_password_too_short_is_rejected(self, filled_form: RegisterPage):
-       filled_form.email.fill("johndoeexample@")
+       filled_form.password.fill("Pa1!")
+       filled_form.confirm_password.fill("Pa1!")
        filled_form.submit()
        assert filled_form.page.url == RegisterPage.URL, (
-            f"Email without domain should be rejected. "
+            f"Password is too short and should be rejected. "
             f"Current URL: {filled_form.page.url}"
         )
 
@@ -185,8 +188,8 @@ class TestPasswordStrength:
         )
 
     def test_password_without_spec_character_is_rejected(self, filled_form: RegisterPage):
-        filled_form.password.fill("pa1!")
-        filled_form.confirm_password.fill("pa1!")
+        filled_form.password.fill("Pass1")
+        filled_form.confirm_password.fill("Pass1")
         filled_form.submit()
         assert filled_form.page.url == RegisterPage.URL, (
             f"Password without uppercase should be rejected. "
